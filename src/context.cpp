@@ -155,7 +155,6 @@ void GContext::prepare_cb(uv_prepare_t *handle, int status)
 		std::list<poll_handler>::iterator phandler = ctx->poll_handlers.begin();
 		while(phandler != ctx->poll_handlers.end()) {
 			if (phandler->ref == 0) {
-				printf("Remove %d\n", phandler->fd);
 
 				uv_unref((uv_handle_t *)phandler->pt);
 				uv_poll_stop(phandler->pt);
