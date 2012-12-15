@@ -14,6 +14,8 @@ using namespace v8;
 static struct gcontext g_context;
 static uv_prepare_t prepare_handle;
 static uv_check_t check_handle;
+static uv_timer_t timeout_handle;
+static bool query = false;
 
 GContext::GContext() {}
 
@@ -29,6 +31,8 @@ void GContext::Init()
 	g_main_context_acquire(gc);
 	ctx->gc = g_main_context_ref(gc);
 	ctx->fds = NULL;
+	ctx->allocated_nfds = 0;
+	query = true;
 
 	/* Prepare */
 	uv_prepare_init(uv_default_loop(), &prepare_handle);
@@ -37,6 +41,9 @@ void GContext::Init()
 	/* Check */
 	uv_check_init(uv_default_loop(), &check_handle);
 	uv_check_start(&check_handle, check_cb);
+
+	/* Timer */
+	uv_timer_init(uv_default_loop(), &timeout_handle);
 }
 
 void GContext::Uninit()
@@ -65,6 +72,8 @@ void GContext::Uninit()
 	uv_prepare_stop(&prepare_handle);
 	uv_close((uv_handle_t *)&prepare_handle, NULL);
 
+	uv_timer_stop(&timeout_handle);
+
 	g_free(ctx->fds);
 
 	/* Release GMainContext loop */
@@ -73,20 +82,25 @@ void GContext::Uninit()
 
 void GContext::poll_cb(uv_poll_t *handle, int status, int events)
 {
-	struct gcontext *ctx = &g_context;
-
 	struct gcontext_pollfd *_pfd = (struct gcontext_pollfd *)handle->data;
 
 	GPollFD *pfd = _pfd->pfd;
 
 	pfd->revents |= pfd->events & ((events & UV_READABLE ? G_IO_IN : 0) | (events & UV_WRITABLE ? G_IO_OUT : 0));
+
+	uv_poll_stop(handle);
 }
 
 void GContext::prepare_cb(uv_prepare_t *handle, int status)
 {
 	gint i;
 	gint timeout;
+	char *flagsTable = NULL;
 	struct gcontext *ctx = &g_context;
+	std::list<poll_handler>::iterator phandler;
+
+	if (!query)
+		return;
 
 	g_main_context_prepare(ctx->gc, &ctx->max_priority);
 
@@ -106,31 +120,35 @@ void GContext::prepare_cb(uv_prepare_t *handle, int status)
 
 	/* Poll */
 	if (ctx->nfds || timeout != 0) {
+		flagsTable = (char *)g_new0(char, ctx->allocated_nfds);
+
 		/* Reduce reference count of handler */
-		for (std::list<poll_handler>::iterator phandler = ctx->poll_handlers.begin(); phandler != ctx->poll_handlers.end(); ++phandler) {
-			phandler->ref--;
+		for (phandler = ctx->poll_handlers.begin(); phandler != ctx->poll_handlers.end(); ++phandler) {
+			phandler->ref = 0;
+
+			for (i = 0; i < ctx->nfds; ++i) {
+				GPollFD *pfd = ctx->fds + i;
+
+				if (phandler->fd == pfd->fd) {
+					*(flagsTable + i) = 1;
+					phandler->pollfd->pfd = pfd;
+					phandler->ref = 1;
+					pfd->revents = 0;
+					uv_poll_start(phandler->pt, UV_READABLE | UV_WRITABLE, poll_cb);
+					break;
+				}
+			}
 		}
 
 		/* Process current file descriptors from GContext */
 		for (i = 0; i < ctx->nfds; ++i) {
 			GPollFD *pfd = ctx->fds + i;
-
-			pfd->revents = 0;
-
-			/* Finding this file descriptor in list */
-			bool exists = false;
-			for (std::list<poll_handler>::iterator phandler = ctx->poll_handlers.begin(); phandler != ctx->poll_handlers.end(); ++phandler) {
-				if (phandler->fd == pfd->fd) {
-					/* Update GPollFD */
-					phandler->pollfd->pfd = pfd;
-					phandler->ref++;
-					exists = true;
-					break;
-				}
-			}
+			gint exists = (gint) *(flagsTable + i);
 
 			if (exists)
 				continue;
+
+			pfd->revents = 0;
 
 			/* Preparing poll handler */
 			struct poll_handler *phandler = new poll_handler;
@@ -151,8 +169,10 @@ void GContext::prepare_cb(uv_prepare_t *handle, int status)
 			ctx->poll_handlers.push_back(*phandler);
 		}
 
+		free(flagsTable);
+
 		/* Remove handlers which aren't required */
-		std::list<poll_handler>::iterator phandler = ctx->poll_handlers.begin();
+		phandler = ctx->poll_handlers.begin();
 		while(phandler != ctx->poll_handlers.end()) {
 			if (phandler->ref == 0) {
 
@@ -175,9 +195,24 @@ void GContext::prepare_cb(uv_prepare_t *handle, int status)
 void GContext::check_cb(uv_check_t *handle, int status)
 {
 	struct gcontext *ctx = &g_context;
+	std::list<poll_handler>::iterator phandler;
 
-	g_main_context_check(ctx->gc, ctx->max_priority, ctx->fds, ctx->nfds);
-	g_main_context_dispatch(ctx->gc);
+	if (!ctx->nfds)
+		return;
+
+	int ready = g_main_context_check(ctx->gc, ctx->max_priority, ctx->fds, ctx->nfds);
+	if (ready)
+		g_main_context_dispatch(ctx->gc);
+
+	/* The libuv event loop is lightweight and quicker than GLib. it requires to hold on for a while. */
+	query = false;
+	uv_timer_start(&timeout_handle, timeout_cb, 5, 0);
+}
+
+void GContext::timeout_cb(uv_timer_t *handle, int status)
+{
+	query = true;
+	uv_timer_stop(&timeout_handle);
 }
 
 #endif
