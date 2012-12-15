@@ -20,7 +20,7 @@ Installation
 -
 Using NPM utility to install module directly:
 
-    npm install node-gcontext
+    npm install gcontext
 
 License
 -
