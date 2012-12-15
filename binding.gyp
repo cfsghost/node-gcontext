@@ -3,8 +3,8 @@
 		{
 			'target_name': 'gcontext',
 			'sources': [
-				'src/gcontext.cpp',
-				'src/context.cpp'
+				'src/node-gcontext.cpp',
+				'src/gcontext.cpp'
 			],
 			'conditions': [
 				['OS=="linux"', {

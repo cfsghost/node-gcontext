@@ -1,25 +1,43 @@
-#ifndef NODE_GCONTEXT_H_
-#define NODE_GCONTEXT_H_
+#ifndef GCONTEXT_H_
+#define GCONTEXT_H_
 
 #include <v8.h>
+#include <node.h>
+#include <glib.h>
+#include <list>
 
-namespace NodeGContext {
+struct gcontext_pollfd {
+	GPollFD *pfd;
+};
 
-#define GCONTEXT_DEFINE_CONSTANT(target, name, constant)					\
-	(target)->Set(v8::String::NewSymbol(name),							\
-	v8::Integer::New(constant),											\
-	static_cast<v8::PropertyAttribute>(v8::ReadOnly|v8::DontDelete))
+struct poll_handler {
+	int fd;
+	uv_poll_t *pt;
+	struct gcontext_pollfd *pollfd;
+	int ref;
+};
 
-	struct NodeCallback {
-		v8::Persistent<v8::Object> Holder;
-		v8::Persistent<v8::Function> cb;
+struct gcontext {
+	int max_priority;
+	int nfds;
+	int allocated_nfds;
+	GPollFD *fds;
+	GMainContext *gc;
 
-		~NodeCallback() {
-			Holder.Dispose();
-			cb.Dispose();
-		}
-	};
+	std::list<poll_handler> poll_handlers;
+};
 
-}
+class GContext {
+public:
+	GContext();
+	void Init();
+	void Uninit();
+
+protected:
+	static void poll_cb(uv_poll_t *handle, int status, int events);
+	static void prepare_cb(uv_prepare_t *handle, int status);
+	static void check_cb(uv_check_t *handle, int status);
+	static void timeout_cb(uv_timer_t *handle, int status);
+};
 
 #endif

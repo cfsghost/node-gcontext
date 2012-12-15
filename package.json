@@ -1,14 +1,17 @@
 {
-  "name" : "gcontext",
-  "version" : "0.0.2",
-  "description": "API to use GMainContext in Node.js",
-  "author" : "Fred Chien <cfsghost@gmail.com>",
-  "repository" : {
-    "type" : "git",
-    "url" : "git@github.com:cfsghost/node-gcontext.git"
-  },
-  "main" : "./lib/gcontext",
-  "scripts" : {
-    "install" : "node-gyp configure build"
-  }
+	"name" : "gcontext",
+	"version" : "0.0.2",
+	"description": "API to use GMainContext in Node.js",
+	"author" : "Fred Chien <cfsghost@gmail.com>",
+	"repository" : {
+		"type" : "git",
+		"url" : "git@github.com:cfsghost/node-gcontext.git"
+	},
+	"engines": {
+		"node": ">= 0.8.0"
+	},
+	"main" : "./lib/gcontext",
+	"scripts" : {
+		"install" : "node-gyp configure build"
+	}
 }
