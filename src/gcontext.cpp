@@ -3,6 +3,7 @@
 #include <node_version.h>
 #include <stdlib.h>
 #include <list>
+#include <uv.h>
 
 #if !(NODE_MAJOR_VERSION == 0 && NODE_MINOR_VERSION < 8)
 
@@ -91,7 +92,11 @@ void GContext::poll_cb(uv_poll_t *handle, int status, int events)
 	uv_poll_stop(handle);
 }
 
+#if UV_VERSION_MAJOR == 0
 void GContext::prepare_cb(uv_prepare_t *handle, int status)
+#else
+void GContext::prepare_cb(uv_prepare_t *handle)
+#endif
 {
 	gint i;
 	gint timeout;
@@ -192,7 +197,11 @@ void GContext::prepare_cb(uv_prepare_t *handle, int status)
 	}
 }
 
+#if UV_VERSION_MAJOR == 0
 void GContext::check_cb(uv_check_t *handle, int status)
+#else
+void GContext::check_cb(uv_check_t *handle)
+#endif
 {
 	struct gcontext *ctx = &g_context;
 	std::list<poll_handler>::iterator phandler;
@@ -209,7 +218,11 @@ void GContext::check_cb(uv_check_t *handle, int status)
 	uv_timer_start(&timeout_handle, timeout_cb, 5, 0);
 }
 
+#if UV_VERSION_MAJOR == 0
 void GContext::timeout_cb(uv_timer_t *handle, int status)
+#else
+void GContext::timeout_cb(uv_timer_t *handle)
+#endif
 {
 	query = true;
 	uv_timer_stop(&timeout_handle);

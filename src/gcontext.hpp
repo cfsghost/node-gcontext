@@ -5,6 +5,7 @@
 #include <node.h>
 #include <glib.h>
 #include <list>
+#include <uv.h>
 
 struct gcontext_pollfd {
 	GPollFD *pfd;
@@ -35,9 +36,16 @@ public:
 
 protected:
 	static void poll_cb(uv_poll_t *handle, int status, int events);
+
+#if UV_VERSION_MAJOR == 0
 	static void prepare_cb(uv_prepare_t *handle, int status);
 	static void check_cb(uv_check_t *handle, int status);
 	static void timeout_cb(uv_timer_t *handle, int status);
+#else
+	static void prepare_cb(uv_prepare_t *handle);
+	static void check_cb(uv_check_t *handle);
+	static void timeout_cb(uv_timer_t *handle);
+#endif
 };
 
 #endif

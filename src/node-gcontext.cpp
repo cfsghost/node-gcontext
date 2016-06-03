@@ -1,7 +1,7 @@
 #include <v8.h>
 #include <node.h>
+#include <nan.h>
 
-#include "node-gcontext.hpp"
 #include "gcontext.hpp"
 
 namespace NodeGContext {
@@ -11,21 +11,17 @@ namespace NodeGContext {
 
 	GContext *context = NULL;
 
-	static Handle<Value> GContextInit(const Arguments& args)
-	{
-		HandleScope scope;
+	NAN_METHOD(GContextInit) {
 
 		if (context == NULL) {
 			context = new GContext;
 			context->Init();
 		}
 
-		return Undefined();
+		info.GetReturnValue().Set(Nan::Undefined());
 	}
 
-	static Handle<Value> GContextUninit(const Arguments& args)
-	{
-		HandleScope scope;
+	NAN_METHOD(GContextUninit) {
 
 		if (context) {
 			context->Uninit();
@@ -33,15 +29,15 @@ namespace NodeGContext {
 			context = NULL;
 		}
 
-		return Undefined();
+		info.GetReturnValue().Set(Nan::Undefined());
 	}
 
-	static void init(Handle<Object> target) {
-		HandleScope scope;
-
-		NODE_SET_METHOD(target, "init", GContextInit);
-		NODE_SET_METHOD(target, "uninit", GContextUninit);
+	NAN_MODULE_INIT(Init) {
+		Nan::Set(target, Nan::New<String>("init").ToLocalChecked(),
+				    Nan::GetFunction(Nan::New<FunctionTemplate>(GContextInit)).ToLocalChecked());
+		Nan::Set(target, Nan::New<String>("uninit").ToLocalChecked(),
+				    Nan::GetFunction(Nan::New<FunctionTemplate>(GContextUninit)).ToLocalChecked());
 	}
 
-	NODE_MODULE(gcontext, init);
+	NODE_MODULE(gcontext, Init);
 }
