@@ -1,6 +1,6 @@
 {
 	"name" : "gcontext",
-	"version" : "0.0.2",
+	"version" : "0.0.3",
 	"description": "API to use GMainContext in Node.js",
 	"author" : "Fred Chien <cfsghost@gmail.com>",
 	"repository" : {

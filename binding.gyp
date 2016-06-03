@@ -20,6 +20,11 @@
 					'libraries': [
 						'<!@(pkg-config  --libs-only-l --libs-only-other glib-2.0)'
 					]
+				}],
+				['OS=="mac"', {
+					'include_dirs': [
+						'<!@(tools/mac-config.sh --include-dirs)'
+					]
 				}]
 			]
 		}
