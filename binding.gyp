@@ -6,6 +6,9 @@
 				'src/node-gcontext.cpp',
 				'src/gcontext.cpp'
 			],
+			'include_dirs': [
+				"<!(node -e \"require('nan')\")"
+			],
 			'conditions': [
 				['OS=="linux"', {
 					'defines': [
